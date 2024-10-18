@@ -18,66 +18,25 @@ const entities_entity_1 = require("./entities/entities.entity");
 const typeorm_1 = require("@nestjs/typeorm");
 const typeorm_2 = require("typeorm");
 let AppController = class AppController {
-    constructor(proposalRepository, userRepository) {
+    constructor(proposalRepository) {
         this.proposalRepository = proposalRepository;
-        this.userRepository = userRepository;
     }
     async getProposalById(id, req) {
-        const proposal = await this.proposalRepository.findOne({ where: { id }, relations: ['userCreator'] });
+        const proposal = await this.proposalRepository.findOne({
+            where: { id },
+            relations: ['userCreator'],
+        });
         if (!proposal || proposal.userCreator.id !== req.user.id) {
             throw new common_1.NotFoundException('Proposta não encontrada ou você não tem permissão para visualizá-la.');
         }
         return proposal;
     }
     async getPendingProposals(req) {
-        return this.proposalRepository.find({
-            where: { userCreator: req.user, status: entities_entity_1.ProposalStatus.PENDING },
+        const pendingProposals = await this.proposalRepository.find({
+            where: { userCreator: { id: req.user.id }, status: entities_entity_1.ProposalStatus.PENDING },
+            relations: ['userCreator'],
         });
-    }
-    async getRefusedProposals(req) {
-        const proposals = await this.proposalRepository.find({
-            where: { userCreator: req.user, status: entities_entity_1.ProposalStatus.REFUSED },
-        });
-        console.log('Refused Proposals:', proposals);
-        return proposals;
-    }
-    async approveProposal(proposalId, req) {
-        const proposal = await this.proposalRepository.findOne({
-            where: { id: proposalId, status: entities_entity_1.ProposalStatus.PENDING },
-        });
-        if (!proposal) {
-            throw new common_1.NotFoundException('Proposta não encontrada ou já foi aprovada.');
-        }
-        proposal.status = entities_entity_1.ProposalStatus.SUCCESSFUL;
-        await this.proposalRepository.save(proposal);
-        const user = req.user;
-        user.balance += proposal.profit;
-        await this.userRepository.save(user);
-        return proposal;
-    }
-    async getProfitByStatus() {
-        const result = await this.proposalRepository
-            .createQueryBuilder('proposal')
-            .select('proposal.status, SUM(proposal.profit) as totalProfit')
-            .groupBy('proposal.status')
-            .getRawMany();
-        return result;
-    }
-    async getBestUsers(start, end) {
-        const result = await this.proposalRepository
-            .createQueryBuilder('proposal')
-            .leftJoinAndSelect('proposal.userCreator', 'user')
-            .select('user.id, user.name, SUM(proposal.profit) as totalProfit')
-            .where('proposal.status = :status', { status: entities_entity_1.ProposalStatus.SUCCESSFUL })
-            .andWhere('proposal.createdAt BETWEEN :start AND :end', { start, end })
-            .groupBy('user.id')
-            .orderBy('totalProfit', 'DESC')
-            .getRawMany();
-        return result.map(user => ({
-            id: user.id,
-            fullName: user.name,
-            totalProposal: parseFloat(user.totalProfit),
-        }));
+        return pendingProposals;
     }
 };
 exports.AppController = AppController;
@@ -96,40 +55,9 @@ __decorate([
     __metadata("design:paramtypes", [Object]),
     __metadata("design:returntype", Promise)
 ], AppController.prototype, "getPendingProposals", null);
-__decorate([
-    (0, common_1.Get)('/proposals/refused'),
-    __param(0, (0, common_1.Req)()),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object]),
-    __metadata("design:returntype", Promise)
-], AppController.prototype, "getRefusedProposals", null);
-__decorate([
-    (0, common_1.Post)('/proposals/:proposal_id/approve'),
-    __param(0, (0, common_1.Param)('proposal_id')),
-    __param(1, (0, common_1.Req)()),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Number, Object]),
-    __metadata("design:returntype", Promise)
-], AppController.prototype, "approveProposal", null);
-__decorate([
-    (0, common_1.Get)('/admin/profit-by-status'),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", []),
-    __metadata("design:returntype", Promise)
-], AppController.prototype, "getProfitByStatus", null);
-__decorate([
-    (0, common_1.Get)('/admin/best-users'),
-    __param(0, (0, common_1.Query)('start')),
-    __param(1, (0, common_1.Query)('end')),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, String]),
-    __metadata("design:returntype", Promise)
-], AppController.prototype, "getBestUsers", null);
 exports.AppController = AppController = __decorate([
     (0, common_1.Controller)(),
     __param(0, (0, typeorm_1.InjectRepository)(entities_entity_1.Proposal)),
-    __param(1, (0, typeorm_1.InjectRepository)(entities_entity_1.User)),
-    __metadata("design:paramtypes", [typeorm_2.Repository,
-        typeorm_2.Repository])
+    __metadata("design:paramtypes", [typeorm_2.Repository])
 ], AppController);
 //# sourceMappingURL=app.controller.js.map

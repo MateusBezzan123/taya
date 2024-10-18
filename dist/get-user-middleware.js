@@ -31,7 +31,6 @@ let UserMiddleware = class UserMiddleware {
             req.user = user;
         }
         else {
-            console.error('User ID header missing');
             throw new common_1.UnauthorizedException('Cabeçalho user_id é obrigatório');
         }
         next();

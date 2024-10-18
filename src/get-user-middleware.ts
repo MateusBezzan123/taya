@@ -1,3 +1,5 @@
+// src/get-user-middleware.ts
+
 import { Injectable, NestMiddleware, UnauthorizedException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Request, Response, NextFunction } from 'express';
@@ -16,14 +18,13 @@ export class UserMiddleware implements NestMiddleware {
 
     if (userId) {
       const user = await this.userRepository.findOne({ where: { id: Number(userId) } });
-      
+
       if (!user) {
         throw new UnauthorizedException('Usuário não encontrado');
       }
 
-      (req as any).user = user; // Attach user to request
+      (req as any).user = user;
     } else {
-      console.error('User ID header missing');
       throw new UnauthorizedException('Cabeçalho user_id é obrigatório');
     }
 
