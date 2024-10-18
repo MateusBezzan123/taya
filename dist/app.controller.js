@@ -21,6 +21,13 @@ let AppController = class AppController {
     constructor(proposalRepository) {
         this.proposalRepository = proposalRepository;
     }
+    async getRefusedProposals(req) {
+        const refusedProposals = await this.proposalRepository.find({
+            where: { userCreator: { id: req.user.id }, status: entities_entity_1.ProposalStatus.REFUSED },
+            relations: ['userCreator'],
+        });
+        return refusedProposals;
+    }
     async getProposalById(id, req) {
         const proposal = await this.proposalRepository.findOne({
             where: { id },
@@ -40,6 +47,13 @@ let AppController = class AppController {
     }
 };
 exports.AppController = AppController;
+__decorate([
+    (0, common_1.Get)('/proposals/refused'),
+    __param(0, (0, common_1.Req)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", Promise)
+], AppController.prototype, "getRefusedProposals", null);
 __decorate([
     (0, common_1.Get)('/proposals/:id'),
     __param(0, (0, common_1.Param)('id')),
