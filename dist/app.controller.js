@@ -18,8 +18,9 @@ const entities_entity_1 = require("./entities/entities.entity");
 const typeorm_1 = require("@nestjs/typeorm");
 const typeorm_2 = require("typeorm");
 let AppController = class AppController {
-    constructor(proposalRepository) {
+    constructor(proposalRepository, userRepository) {
         this.proposalRepository = proposalRepository;
+        this.userRepository = userRepository;
     }
     async getRefusedProposals(req) {
         const refusedProposals = await this.proposalRepository.find({
@@ -45,6 +46,27 @@ let AppController = class AppController {
         });
         return pendingProposals;
     }
+    async approveProposal(proposalId, req) {
+        const proposalIdNumber = parseInt(proposalId, 10);
+        if (isNaN(proposalIdNumber)) {
+            throw new common_1.BadRequestException('ID da proposta inválido');
+        }
+        const proposal = await this.proposalRepository.findOne({
+            where: { id: proposalIdNumber },
+            relations: ['userCreator'],
+        });
+        if (!proposal) {
+            throw new common_1.NotFoundException('Proposta não encontrada.');
+        }
+        if (proposal.status !== entities_entity_1.ProposalStatus.PENDING) {
+            throw new common_1.BadRequestException('Somente propostas com status PENDING podem ser aprovadas.');
+        }
+        proposal.status = entities_entity_1.ProposalStatus.SUCCESSFUL;
+        req.user.balance += proposal.profit;
+        await this.proposalRepository.save(proposal);
+        await this.userRepository.save(req.user);
+        return proposal;
+    }
 };
 exports.AppController = AppController;
 __decorate([
@@ -69,9 +91,19 @@ __decorate([
     __metadata("design:paramtypes", [Object]),
     __metadata("design:returntype", Promise)
 ], AppController.prototype, "getPendingProposals", null);
+__decorate([
+    (0, common_1.Post)('/proposals/:proposal_id/approve'),
+    __param(0, (0, common_1.Param)('proposal_id')),
+    __param(1, (0, common_1.Req)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object]),
+    __metadata("design:returntype", Promise)
+], AppController.prototype, "approveProposal", null);
 exports.AppController = AppController = __decorate([
     (0, common_1.Controller)(),
     __param(0, (0, typeorm_1.InjectRepository)(entities_entity_1.Proposal)),
-    __metadata("design:paramtypes", [typeorm_2.Repository])
+    __param(1, (0, typeorm_1.InjectRepository)(entities_entity_1.User)),
+    __metadata("design:paramtypes", [typeorm_2.Repository,
+        typeorm_2.Repository])
 ], AppController);
 //# sourceMappingURL=app.controller.js.map

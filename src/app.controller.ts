@@ -1,7 +1,5 @@
-// src/app.controller.ts
-
-import { Controller, Get, Param, Req, NotFoundException } from '@nestjs/common';
-import { Proposal, ProposalStatus } from './entities/entities.entity';
+import { Controller, Get, Param, Req, NotFoundException, Post, BadRequestException } from '@nestjs/common';
+import { Proposal, ProposalStatus, User } from './entities/entities.entity';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
@@ -9,7 +7,9 @@ import { Repository } from 'typeorm';
 export class AppController {
   constructor(
     @InjectRepository(Proposal)
-    private readonly proposalRepository: Repository<Proposal>
+    private readonly proposalRepository: Repository<Proposal>,
+    @InjectRepository(User)
+    private readonly userRepository: Repository<User>
   ) {}
 
   @Get('/proposals/refused')
@@ -46,5 +46,38 @@ export class AppController {
     });
 
     return pendingProposals;
+  }
+
+  @Post('/proposals/:proposal_id/approve')
+  async approveProposal(
+    @Param('proposal_id') proposalId: string,
+    @Req() req: any
+  ): Promise<Proposal> {
+    const proposalIdNumber = parseInt(proposalId, 10);
+    if (isNaN(proposalIdNumber)) {
+      throw new BadRequestException('ID da proposta inválido');
+    }
+
+    const proposal = await this.proposalRepository.findOne({
+      where: { id: proposalIdNumber },
+      relations: ['userCreator'],
+    });
+
+    if (!proposal) {
+      throw new NotFoundException('Proposta não encontrada.');
+    }
+
+    if (proposal.status !== ProposalStatus.PENDING) {
+      throw new BadRequestException('Somente propostas com status PENDING podem ser aprovadas.');
+    }
+
+    proposal.status = ProposalStatus.SUCCESSFUL;
+
+    req.user.balance += proposal.profit;
+
+    await this.proposalRepository.save(proposal);
+    await this.userRepository.save(req.user);
+
+    return proposal;
   }
 }
