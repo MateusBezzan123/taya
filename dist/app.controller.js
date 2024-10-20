@@ -67,6 +67,47 @@ let AppController = class AppController {
         await this.userRepository.save(req.user);
         return proposal;
     }
+    async getProfitByStatus() {
+        const results = await this.proposalRepository
+            .createQueryBuilder('proposal')
+            .select('proposal.status', 'status')
+            .addSelect('proposal.userCreator', 'userCreator')
+            .addSelect('SUM(proposal.profit)', 'totalProfit')
+            .innerJoin('proposal.userCreator', 'user')
+            .groupBy('proposal.status')
+            .addGroupBy('proposal.userCreator')
+            .getRawMany();
+        const groupedResults = results.map(result => ({
+            status: result.status,
+            userId: result.userCreator,
+            totalProfit: parseFloat(result.totalProfit)
+        }));
+        return groupedResults;
+    }
+    async getBestUsers(start, end) {
+        if (!start || !end) {
+            throw new common_1.BadRequestException('Os parâmetros "start" e "end" são obrigatórios.');
+        }
+        const startDate = new Date(start);
+        const endDate = new Date(end);
+        if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+            throw new common_1.BadRequestException('Datas inválidas.');
+        }
+        const results = await this.proposalRepository
+            .createQueryBuilder('proposal')
+            .select('proposal.userCreator', 'userId')
+            .addSelect('SUM(proposal.profit)', 'totalProfit')
+            .where('proposal.status = :status', { status: entities_entity_1.ProposalStatus.SUCCESSFUL })
+            .andWhere('proposal.createdAt BETWEEN :start AND :end', { start: startDate, end: endDate })
+            .groupBy('proposal.userCreator')
+            .orderBy('SUM(proposal.profit)', 'DESC')
+            .getRawMany();
+        const bestUsers = results.map(result => ({
+            userId: result.userId,
+            totalProfit: parseFloat(result.totalProfit),
+        }));
+        return bestUsers;
+    }
 };
 exports.AppController = AppController;
 __decorate([
@@ -99,6 +140,20 @@ __decorate([
     __metadata("design:paramtypes", [String, Object]),
     __metadata("design:returntype", Promise)
 ], AppController.prototype, "approveProposal", null);
+__decorate([
+    (0, common_1.Get)('/admin/profit-by-status'),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", Promise)
+], AppController.prototype, "getProfitByStatus", null);
+__decorate([
+    (0, common_1.Get)('/admin/best-users'),
+    __param(0, (0, common_1.Query)('start')),
+    __param(1, (0, common_1.Query)('end')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String]),
+    __metadata("design:returntype", Promise)
+], AppController.prototype, "getBestUsers", null);
 exports.AppController = AppController = __decorate([
     (0, common_1.Controller)(),
     __param(0, (0, typeorm_1.InjectRepository)(entities_entity_1.Proposal)),

@@ -24,7 +24,8 @@ export class UserMiddleware implements NestMiddleware {
       }
 
       (req as any).user = user;
-    } else {
+    } 
+    else {
       throw new UnauthorizedException('Cabeçalho user_id é obrigatório');
     }
 

@@ -8,4 +8,6 @@ export declare class AppController {
     getProposalById(id: number, req: any): Promise<Proposal>;
     getPendingProposals(req: any): Promise<Proposal[]>;
     approveProposal(proposalId: string, req: any): Promise<Proposal>;
+    getProfitByStatus(): Promise<any>;
+    getBestUsers(start: string, end: string): Promise<any>;
 }
